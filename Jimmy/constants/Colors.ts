@@ -1,19 +1,53 @@
-const tintColorLight = '#2f95dc';
-const tintColorDark = '#fff';
+const tintColorLight = "#6366F1";
+const tintColorDark = "#818CF8";
+const accentLight = "#EC4899";
+const accentDark = "#F472B6";
 
 export default {
   light: {
-    text: '#000',
-    background: '#fff',
+    text: "#0F172A",
+    textSecondary: "#475569",
+    textTertiary: "#94A3B8",
+    background: "#F8FAFC",
+    backgroundSecondary: "#FFFFFF",
+    backgroundTertiary: "#F1F5F9",
     tint: tintColorLight,
-    tabIconDefault: '#ccc',
+    accent: accentLight,
+    tabIconDefault: "#94A3B8",
     tabIconSelected: tintColorLight,
+    success: "#10B981",
+    warning: "#F59E0B",
+    error: "#EF4444",
+    border: "#E2E8F0",
+    borderLight: "#F1F5F9",
+    card: "#FFFFFF",
+    cardElevated: "#FFFFFF",
+    overlay: "rgba(15, 23, 42, 0.6)",
+    gradient1: "#6366F1",
+    gradient2: "#EC4899",
+    shadow: "rgba(99, 102, 241, 0.1)",
   },
   dark: {
-    text: '#fff',
-    background: '#000',
+    text: "#F8FAFC",
+    textSecondary: "#CBD5E1",
+    textTertiary: "#64748B",
+    background: "#0F172A",
+    backgroundSecondary: "#1E293B",
+    backgroundTertiary: "#334155",
     tint: tintColorDark,
-    tabIconDefault: '#ccc',
+    accent: accentDark,
+    tabIconDefault: "#64748B",
     tabIconSelected: tintColorDark,
+    success: "#34D399",
+    warning: "#FBBF24",
+    error: "#F87171",
+    border: "#334155",
+    borderLight: "#1E293B",
+    card: "#1E293B",
+    cardElevated: "#334155",
+    overlay: "rgba(15, 23, 42, 0.8)",
+    gradient1: "#818CF8",
+    gradient2: "#F472B6",
+    shadow: "rgba(129, 140, 248, 0.15)",
   },
 };
