@@ -1,0 +1,1 @@
+Ce répertoire contient les définitions de types TypeScript de l'application.

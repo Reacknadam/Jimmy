@@ -1,152 +1,105 @@
-import createContextHook from '@nkzw/create-context-hook';
-import { supabase } from '@/config/supabase';
-import { Session, User } from '@supabase/supabase-js';
-import { useEffect, useState, useCallback, useMemo } from 'react';
-import * as Linking from 'expo-linking';
-import * as WebBrowser from 'expo-web-browser';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, { useState, useEffect, createContext, useContext } from 'react';
+import { Session, User as SupabaseUser } from '@supabase/supabase-js';
+import { supabase } from '@/lib/supabase';
+import { User } from '@/types/user';
 
-WebBrowser.maybeCompleteAuthSession();
+interface AuthContextType {
+  session: Session | null;
+  user: User | null;
+  isAuthenticated: boolean;
+  loading: boolean;
+  signIn: (email, password) => Promise<any>;
+  signUp: (fullName, email, password, role) => Promise<any>;
+  signOut: () => Promise<any>;
+}
 
-const AUTH_STATE_KEY = '@yass_auth_state';
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const [AuthProvider, useAuth] = createContextHook(() => {
+export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
-    initializeAuth();
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      console.log('[Auth] State changed:', _event, session?.user?.email);
+    const getSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
       setSession(session);
-      setUser(session?.user ?? null);
-      setIsAuthenticated(!!session);
-      
       if (session) {
-        await AsyncStorage.setItem(AUTH_STATE_KEY, JSON.stringify({
-          isAuthenticated: true,
-          userId: session.user.id,
-          email: session.user.email,
-        }));
-      } else {
-        await AsyncStorage.removeItem(AUTH_STATE_KEY);
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', session.user.id)
+          .single();
+        setUser(profile);
       }
-    });
+      setLoading(false);
+    };
 
-    const handleDeepLink = Linking.addEventListener('url', ({ url }) => {
-      console.log('[Auth] Deep link received:', url);
-      if (url.includes('yass://auth')) {
-        const params = new URL(url).searchParams;
-        const accessToken = params.get('access_token');
-        const refreshToken = params.get('refresh_token');
-        
-        if (accessToken && refreshToken) {
-          supabase.auth.setSession({
-            access_token: accessToken,
-            refresh_token: refreshToken,
-          });
+    getSession();
+
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      async (_event, session) => {
+        setSession(session);
+        if (session) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .single();
+          setUser(profile);
+        } else {
+          setUser(null);
         }
       }
-    });
+    );
 
     return () => {
-      subscription.unsubscribe();
-      handleDeepLink.remove();
+      authListener.subscription.unsubscribe();
     };
   }, []);
 
-  const initializeAuth = async () => {
-    try {
-      console.log('[Auth] Initializing...');
-      
-      const cachedState = await AsyncStorage.getItem(AUTH_STATE_KEY);
-      console.log('[Auth] Cached state:', cachedState);
+  const signIn = (email, password) =>
+    supabase.auth.signInWithPassword({ email, password });
 
-      const { data: { session }, error } = await supabase.auth.getSession();
-      
-      if (error) {
-        console.error('[Auth] Error getting session:', error);
-        await AsyncStorage.removeItem(AUTH_STATE_KEY);
-      }
-
-      console.log('[Auth] Session loaded:', session?.user?.email);
-      setSession(session);
-      setUser(session?.user ?? null);
-      setIsAuthenticated(!!session);
-      
-      if (session) {
-        await AsyncStorage.setItem(AUTH_STATE_KEY, JSON.stringify({
-          isAuthenticated: true,
-          userId: session.user.id,
-          email: session.user.email,
-        }));
-      }
-    } catch (error) {
-      console.error('[Auth] Initialization error:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const signUp = useCallback(async (email: string, password: string, fullName: string) => {
-    console.log('[Auth] Signing up:', email);
+  const signUp = async (fullName, email, password, role) => {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         data: {
           full_name: fullName,
+          role: role, // Le rôle est passé ici
         },
       },
     });
+
     if (error) throw error;
+
+    // Note: Vous devrez créer une table 'profiles' dans Supabase
+    // avec une policy qui autorise l'insertion pour les nouveaux utilisateurs.
+    // Et un trigger qui copie les informations de `auth.users` vers `public.profiles`.
     return data;
-  }, []);
+  };
 
-  const signIn = useCallback(async (email: string, password: string) => {
-    console.log('[Auth] Signing in:', email);
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    if (error) throw error;
-    return data;
-  }, []);
+  const signOut = () => supabase.auth.signOut();
 
-  const signInWithGoogle = useCallback(async () => {
-    console.log('[Auth] Signing in with Google');
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: 'https://yass-redirect.netlify.app/--auth',
-      },
-    });
-    if (error) throw error;
-    if (data.url) {
-      await WebBrowser.openAuthSessionAsync(data.url, 'yass://auth');
-    }
-  }, []);
-
-  const signOut = useCallback(async () => {
-    console.log('[Auth] Signing out');
-    const { error } = await supabase.auth.signOut();
-    if (error) throw error;
-    await AsyncStorage.removeItem(AUTH_STATE_KEY);
-  }, []);
-
-  return useMemo(() => ({
+  const value = {
     session,
     user,
+    isAuthenticated: !!session,
     loading,
-    isAuthenticated,
-    signUp,
     signIn,
-    signInWithGoogle,
+    signUp,
     signOut,
-  }), [session, user, loading, isAuthenticated, signUp, signIn, signInWithGoogle, signOut]);
-});
+  };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+};
+
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+};

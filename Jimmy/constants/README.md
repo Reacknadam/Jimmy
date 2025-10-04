@@ -1,0 +1,1 @@
+Ce répertoire contient les constantes de l'application (thèmes, couleurs, etc.).

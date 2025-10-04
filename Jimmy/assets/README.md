@@ -1,0 +1,1 @@
+Ce répertoire contient les polices et les images de l'application.

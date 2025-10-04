@@ -1,0 +1,1 @@
+Ce répertoire contient la configuration des clients (Supabase, Firebase) et les fonctions utilitaires.
